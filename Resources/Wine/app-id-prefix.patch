@@ -1,0 +1,27 @@
+Lets the environment prefix the app ID of every window, so compositors can tell apart the
+windows of separate Wine prefixes that run the same program.
+
+--- a/dlls/winewayland.drv/wayland_surface.c
++++ b/dlls/winewayland.drv/wayland_surface.c
+@@ -267,8 +267,20 @@
+     if (!surface->xdg_toplevel) goto err;
+     xdg_toplevel_add_listener(surface->xdg_toplevel, &xdg_toplevel_listener, surface->hwnd);
+
+     if (process_name)
+-        xdg_toplevel_set_app_id(surface->xdg_toplevel, process_name);
++    {
++        const char *prefix = getenv("WINE_WAYLAND_APP_ID_PREFIX");
++        char *app_id;
++
++        if (prefix && (app_id = malloc(strlen(prefix) + strlen(process_name) + 1)))
++        {
++            strcpy(app_id, prefix);
++            strcat(app_id, process_name);
++            xdg_toplevel_set_app_id(surface->xdg_toplevel, app_id);
++            free(app_id);
++        }
++        else xdg_toplevel_set_app_id(surface->xdg_toplevel, process_name);
++    }
+
+     if (process_wayland.xdg_toplevel_tag_manager_v1)
+     {

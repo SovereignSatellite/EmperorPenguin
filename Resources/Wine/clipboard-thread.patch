@@ -1,0 +1,59 @@
+Thread attach would run the program's TLS callbacks on the clipboard thread, which can start while
+the main thread is still in the program's C runtime start-up.
+A callback that waits on a lock the start-up hasn't initialized then holds the loader lock the main
+thread needs.
+
+--- a/dlls/winewayland.drv/dllmain.c
++++ b/dlls/winewayland.drv/dllmain.c
+@@ -43,7 +43,7 @@
+     return DefWindowProcW(hwnd, msg, wp, lp);
+ }
+ 
+-static DWORD WINAPI clipboard_thread(void *arg)
++static void CALLBACK clipboard_thread(void *arg)
+ {
+     const THREAD_NAME_INFORMATION info = {RTL_CONSTANT_STRING(L"winewayland_clipboard")};
+     static const WCHAR clipboard_classname[] = L"__winewayland_clipboard_manager";
+@@ -61,7 +61,7 @@
+     if (!(atom = RegisterClassW(&class)) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
+     {
+         ERR("could not register clipboard window class err %lu\n", GetLastError());
+-        return 0;
++        return;
+     }
+     /* The HWND_MESSAGE parent window may not have been created yet. It will be
+      * created eventually, so keep trying. */
+@@ -76,18 +76,17 @@
+     {
+         TRACE("failed to create clipboard window err %lu\n", GetLastError());
+         UnregisterClassW(MAKEINTRESOURCEW(atom), NULL);
+-        return 0;
++        return;
+     }
+ 
+     TRACE("created per-process clipboard window hwnd=%p\n", hwnd);
+ 
+     while (GetMessageW(&msg, 0, 0, 0)) DispatchMessageW(&msg);
+-    return 0;
+ }
+ 
+ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
+ {
+-    DWORD tid;
++    HANDLE thread;
+ 
+     if (reason != DLL_PROCESS_ATTACH) return TRUE;
+ 
+@@ -98,8 +97,10 @@
+         return FALSE;
+ 
+     /* Handle clipboard events in a dedicated thread, if needed. */
+-    if (!WAYLANDDRV_UNIX_CALL(init_clipboard, NULL))
+-        CloseHandle(CreateThread(NULL, 0, clipboard_thread, NULL, 0, &tid));
++    if (!WAYLANDDRV_UNIX_CALL(init_clipboard, NULL) &&
++        !NtCreateThreadEx(&thread, THREAD_ALL_ACCESS, NULL, GetCurrentProcess(), clipboard_thread,
++                          NULL, THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH, 0, 0, 0, NULL))
++        NtClose(thread);
+ 
+     return TRUE;
+ }

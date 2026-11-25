@@ -1,0 +1,10 @@
+WINE REGISTRY Version 2
+
+#arch=win64
+
+[Control Panel\\Desktop] 0
+"DragFullWindows"="1"
+
+;; The default visual style draws light bitmaps that ignore the colors the panel writes at each start.
+[Software\\Microsoft\\Windows\\CurrentVersion\\ThemeManager] 0
+"ThemeActive"="0"

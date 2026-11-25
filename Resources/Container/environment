@@ -1,0 +1,26 @@
+# On NixOS hosts, the NVIDIA Container Toolkit mounts the host's drivers at /run/opengl-driver.
+# As Proton sets them: no log files from the translation layers, NVIDIA's shader cache kept
+# whole however large it grows, and the full 4 GB for 32-bit programs.
+DXVK_ENABLE_NVAPI=1
+DXVK_LOG_LEVEL=none
+VKD3D_DEBUG=none
+VKD3D_SHADER_DEBUG=none
+__GL_SHADER_DISK_CACHE_SKIP_CLEANUP=1
+WINE_LARGE_ADDRESS_AWARE=1
+FONTCONFIG_FILE=@fonts@
+HOME=/prefix
+# Udev events never reach the container, so SDL watches /dev/input for controllers itself.
+SDL_JOYSTICK_DISABLE_UDEV=1
+WAYLAND_DISPLAY=wayland
+# The box has no X server, so Wine goes straight to its Wayland driver. Nothing reads the Linux menu
+# entries that winemenubuilder writes into the box's home folder.
+WINEDLLOVERRIDES=d3d8,d3d9,d3d10core,d3d11,d3d12,d3d12core,dxgi=n,b;winemenubuilder.exe=d;winex11.drv=d
+# Panel messages show what Wine prints when a program fails to start. Unfinished features and the
+# Wayland protocols that the filtered socket hides would bury the cause.
+WINEDEBUG=fixme-all,err-waylanddrv
+WINEPREFIX=/prefix
+XDG_DATA_DIRS=/share:/run/opengl-driver/share
+XDG_RUNTIME_DIR=/run
+__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS=/run/opengl-driver/share/egl/egl_external_platform.d
+# The NVIDIA vendor comes first, because Mesa's claims the NVIDIA device and then fails on it.
+__EGL_VENDOR_LIBRARY_DIRS=/run/opengl-driver/share/glvnd/egl_vendor.d:/share/glvnd/egl_vendor.d
